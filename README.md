@@ -3,22 +3,22 @@ Autonomous indoor mapping &amp; navigation robot built with ROS2 — LiDAR SLAM 
 Stack: ROS2 Jazzy using Ubuntu 24.04. using python for most nodes and C++ for the costmap plugin.
 
 Week 1 — ROS2 fundamentals 
-Day 1 — [date]: Orientation and sequencing
+Day 1 — 20/06/2026: Orientation and sequencing
 Decided to do the official Jazzy beginner tutorials first, turtlesim for the sandbox learning nodes/topics/services, then doing the SLAM/Nav2 tutorial series, then hardware. The Addison series assumes you already know what a node, topic, and transform are.
 
 Decision logged: turtlesim before autonomy-stack tutorials
-Day 2–3 — [date]: Beginner CLI tools
+Day 2–3 — 21-22/06/2026: Beginner CLI tools
 Worked through the CLI section in the turtlesim sandbox — running nodes, ros2 topic / ros2 service / ros2 node inspection, rqt.
 
 Learned about QoS matching: hit the ros2 topic pub -w 2 flag. I learned that publisher and subscriber must match on topic + type + QoS. Ros2 topic info <topic> shows pub/sub counts. This is important for Phase 3
 Learned: rqt_graph shows topics and not services, services are request/response and don't appear in the topic graph.
 
-Day 4–5 — [date]: Client libraries (writing nodes)
+Day 4–5 — 24-25/06/2026: Client libraries (writing nodes)
 Started to writing nodes. Publishers and subscribers, services and clients, in Python (rclpy). Read the C++ versions alongside for familiarity, since the costmap plugin later is C++.
 
 C++ vs Python: For services request/response, the language choice barely matters but for publishers and subscribers it matters more due to Python Global Interpreter Lock and the serialization overhead on big/fast messages. So Python is the right default for my nodes C++ reserved for the costmap plugin where pluginlib requires it.
 
-Day 6–7 — [date]: Custom interfaces + parameters
+Day 6–7 — 27-28/06/2026: Custom interfaces + parameters
 Built the more_interfaces package (custom msg/srv). This is the pattern the whole project's cross-language fusion depends on.
 
 rosidl: understood that .msg files are just definitions and rosidl_default_generators generates Python and C++ code from them at build time. rosidl_default_runtime is needed to use it. package.xml uses buildtool_depend or exec_depend to express the same split.
@@ -38,7 +38,7 @@ Overlay sourcing: The last file sourced takes precedent. setup.bash replays the 
 Decision logged: keep tutorial packages in the learning workspace; the real robot workspace stays clean from commit one.
 
 Week 2 — tf2 (coordinate frames)
-Day 8 — [date]: Why tf2, and the frame tree
+Day 8 — 30/06/2026: Why tf2, and the frame tree
 Started tf2: i understand it as a timestamped tree of frames, each with one parent, queryable at any past instant. 
 
 Key concept — the map/odom split: odom → base_link is smooth but drifts; map → base_link is accurate but snaps on SLAM corrections. Can't be both, so odometry owns odom → base_link and slam_toolbox publishes map → odom as a drift-absorbing correction. This is the tree I'll wire by hand in Phase 3.
@@ -56,7 +56,7 @@ Wrote the static broadcaster. The broadcaster publishes an edge of the tree, it 
 Relevance: this is exactly how I'll publish base_link → laser on the real robot.
 Bug — ModuleNotFoundError: ros2 run found the entry-point wrapper but the import failed. Learned the wrapper is generated from setup.py entry_points without checking the module exists. The cause was a misplaced source file that was in the main package directory instead of the src directory.
 
-Day 9 — [date]: Dynamic broadcaster + parameters in practice
+Day 9 — 1/07/2026: Dynamic broadcaster + parameters in practice
 Wrote the dynamic broadcaster (subscribes to a turtle's pose, publishes world → turtleN).
 
 Cleared up: get_parameter_value().string_value returns the whole string, not a number; declare_parameter('turtlename', 'turtle') sets a default/fallback, an external value overrides it entirely.
