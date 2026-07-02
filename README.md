@@ -75,6 +75,18 @@ tf2 time + docs gap
 Worked through "Using time" and "Traveling in time" concepts — the temporal axis of the buffer.
 Docs note: the Jazzy docs only publish the C++ pages for these two tutorials — the Python pages exist on EOL distros (Galactic/Foxy) but 404 on Jazzy. Ill read the C++ for the concept and translated the single changed lookup_transform call to rclpy myself.
 
+Error: get_clock().now() with a timeout has 100% failure in Python, works in C++
+The "Using time" tutorial has you use now() in C++ to see it fail with "extrapolation into the future", then add a timeout as the fix. In C++ the timeout fixes but in python it fails anyway due to differences with python and c++ architecture. thee best fix is a query at rclpy.time.Time() which fetches the latest transform.
+
+Error: lookup_transform vs lookup_transform_full -
+"Traveling in time" uses the 6-argument advanced lookup,in C++ this is an overload of the lookupTransform function. However rclpy doesn't overload so the advanced form is a separate method, lookup_transform_full. 
+
+Day 10 — 2/07/2026: Debugging + Quaternion + using stamped datatypes
+
+tf2 debugging tutorial - Went over errors i have already encountered 
+Quaternion fundamentals - RPY is my interface, quaternions are the plumbing, tf2 does the algebra.
+Using stamped dataTypes - Uses MessageFilter to translate frame point of view. This is the tutorial that most directly rehearses the Phase 4 camera→costmap fusion, although a python version exists it is used little in comparison to it's C++ counterpart, docs only go over the c++ version.
+
 
 Status at end of Week 2
 
