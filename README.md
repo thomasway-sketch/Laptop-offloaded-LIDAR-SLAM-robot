@@ -87,10 +87,40 @@ tf2 debugging tutorial - Went over errors i have already encountered
 Quaternion fundamentals - RPY is my interface, quaternions are the plumbing, tf2 does the algebra.
 Using stamped dataTypes - Uses MessageFilter to translate frame point of view. This is the tutorial that most directly rehearses the Phase 4 camera→costmap fusion, although a python version exists it is used little in comparison to it's C++ counterpart, docs only go over the c++ version.
 
+Day 11 — 3/07/2026 URDF: 
+tf2 queries the frame tree, URDF declares the robot's frames from geometry, and robot_state_publisher publishes them to /tf — replacing hand-written broadcasters.
+
+Reused my learning workspace instead of the tutorial's second_ros2_ws — one workspace holds many packages; the rule that matters is keeping learning packages out of the future robot workspace, not one-per-tutorial.
+
+<link> defines a frame.
+robot_state_publisher automated tf broadcaster
+joint_state_publisher made current joint angles, GUI sliders now and wheel encoders on the real robot.
+
+Joint places the child frame from the parent.
+Visual <origin> places geometry within its own frame, puerly cosmetic.
+
+Joint types:
+type declares the relationship; fixed (constant, no axis), continuous (free rotation, needs <axis>), revolute (limited, needs <limit>), prismatic (slide). Movable types need <axis> + a position from /joint_states.
+My robot needs wheels, continuous, LiDAR = fixed.
+
+
+Preprocessor with variables, math and macros that expands plain URDF before any tool reads it.
+xmlns:xacro="http://www.ros.org/wiki/xacro" is a namespace label, not a link. Must be that exact string — XML doesn't care, but the xacro tool matches it literally.
+Need it for two near-identical wheels, shared constants, and math.
+
+create_publisher(JointState, 'joint_states', qos). jointState contains, type = header + name[] + position/velocity/effort[]; topic joint_states is a required convention.
+
+
+Day 12 - 4/07/2026 - launch:
+
+Worked through substitutions and event handlers in the launch system. Both are consequences of the same build-time/execute-time boundary.
+A substitution is a deferred value across that gap, don't compute it now, compute it at launch time. Initially conflated this with IncludeLaunchDescription.
+An event handler is a deferred reaction across the same gap: Events occur at runtime you don't declare the events, you declare the handler. 
+Matchers to remember: OnProcessStart, OnProcessExit, OnProcessIO, OnShutdown, OnExecutionComplete. 
 
 Status at end of Week 2
 
 Done: beginner CLI + client libraries, custom interfaces, parameters, full tf2 sequence (broadcaster/listener/adding-a-frame/time).
 Deliberately deferred: advanced intermediate tutorials as theyre out-of-scope. i will do pluginlib tutorial just before the Nav2 costmap plugin.
-Next: URDF → launch files → then Phase 2 (slam_toolbox + Nav2 in Gazebo simulation on a simulated TurtleBot3).
-Open gating item: laptop specs (CPU / RAM / discrete-vs-integrated GPU) still unconfirmed — needed to assess Gazebo feasibility before Phase 2.
+URDF → launch files → then Phase 2 (slam_toolbox + Nav2 in Gazebo simulation on a simulated TurtleBot3).
+
