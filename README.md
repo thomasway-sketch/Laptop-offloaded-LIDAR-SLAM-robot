@@ -124,3 +124,16 @@ Done: beginner CLI + client libraries, custom interfaces, parameters, full tf2 s
 Deliberately deferred: advanced intermediate tutorials as theyre out-of-scope. i will do pluginlib tutorial just before the Nav2 costmap plugin.
 URDF → launch files → then Phase 2 (slam_toolbox + Nav2 in Gazebo simulation on a simulated TurtleBot3).
 
+Week 3 - 9/07/2026
+Phase 2 (simulation) complete.
+Used Gazebo Harmonic with TB3, slam_toolbox, Nav2, RViz, all on Jazzy. Mapped the world with slam_toolbox. First the map came out doubled caused crashing into a wall while driving. Wheels kept turning but the robot didn't so odometry lied and the software laid the room down twice. I re-drove slowly and got a clean single-hexagon map. Saved pgm+yaml.
+
+Finally understand the map -> odom -> base_link tree properly: odometry gives smooth-but-drifting odom->base_link, SLAM/AMCL gives the correcting map→odom, and the split exists so controllers get continuity while planners get global accuracy. /map is the occupancy grid so the robot's actual position is the map->base_link transform, tf query and not a topic.
+Then the Nav2 had problems with getting the robot to move after planning a route. Chased it through a lot of layers — cmd_vel Twist vs TwistStamped, use_sim_time not reaching RViz and robot_state_publisher,transform_tolerance, localization. Most of those were symptoms, not the cause.
+The Real root cause was behavior_server and docking_server was failing to configure because some cmd_vel nodes were on Twist and others on TwistStamped. Every downstream symptom I'd been debugging was noise from a stack that never fully started.
+The Fix: enable_stamped_cmd_vel across all nodes cmd_vel nodes. Set it globally with a /** wildcard plus explicit per-node lines. There's no valid mixed state — all Twist or all TwistStamped.
+Full autonomous nav works. I can now set initial pose, send a goal and the robot plans and drives around the cylinders to the target. First goal turned-paused-then-went while localization converged; every goal since is clean.
+
+Subjects of note:
+When a lifecycle node fails to configure, read the bringup logs first - a half-started stack makes every other symptom meaningless.
+tf exception direction is diagnostic - earlier than cache (past) vs extrapolation into future (future) fail for opposite reasons.
