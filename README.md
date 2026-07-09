@@ -1,6 +1,4 @@
 # Laptop-offloaded-LIDAR-SLAM-robot
-
-# Autonomous SLAM Navigation Robot
 ![navigation demo](assets/nav_demo.gif)
 
 Autonomous indoor mapping &amp; navigation robot built with ROS2 — LiDAR SLAM (slam_toolbox) and Nav2, with on-robot sensing offloaded to a laptop over WiFi. Differentiator:object detection feeding the navigation costmap
