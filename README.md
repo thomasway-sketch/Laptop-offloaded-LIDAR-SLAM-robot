@@ -175,3 +175,9 @@ RPLIDAR A1M8 dev kit, SparkFun Dual TB6612FNG, 400-point breadboard, and M-M / M
 Nothing to wire up yet without the ESP32, but the LiDAR arriving first is convenient: its dev kit includes the USB-to-serial adapter, which means I can bench-test it standalone on the laptop before the ESP32 relay exists.
 The TB6612's header strip ships loose so soldering is required in the build. Doing that before the ESP32 arrives so the board is breadboard-ready.
 
+17/07/2026
+ESP32 arrived:
+To figure out if: the toolchain cross-compiles, the port and permissions are right, the flash succeeds, the chip boots your code, and serial round-trips back. I set the data rate in bits per second (baud) for serial data transmission and then wrote data to the serial port. The monitor then printed hello in the terminal so i knew everything was working.
+
+Note: Was originally going to do a blink test but there is no built in LED on the dev board (figured out due to pin map) and i had no resistors and free LED's lying around. Serial test is superior anyway so no problems.
+
