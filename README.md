@@ -139,3 +139,45 @@ Full autonomous nav works. I can now set initial pose, send a goal and the robot
 Subjects of note:
 When a lifecycle node fails to configure, read the bringup logs first - a half-started stack makes every other symptom meaningless.
 tf exception direction is diagnostic - earlier than cache (past) vs extrapolation into future (future) fail for opposite reasons.
+
+Phase 3:
+Bill of Materials — ordered 10 July 2026
+Drive
+2× JGA25-371 geared DC motor, 12 V, 130 RPM, metal gearbox, with Hall quadrature encoder. ~£20/pair
+2WD acrylic chassis kit (~22 × 15 cm) - deck, ball caster, standoffs, hardware. ~£21
+SparkFun Dual TB6612FNG motor driver - dual H-bridge, one board drives both motors. Header strip needs soldering. ~£6
+
+Compute
+ESP32-WROOM-32E DevKit - dual-core 160 MHz, onboard CP2102 USB-serial, pre-soldered headers, breadboard-compatible. ~£14
+
+Sensing
+Slamtec RPLIDAR A1M8 dev kit - 360° 2D laser scanner, includes USB-to-serial adapter board + cables. ~£96
+
+Power
+8× AA NiMH rechargeable, 2800 mAh ~£13
+8-slot NiMH battery charger ~£21
+8×AA battery holder
+2× LM2596 adjustable buck converter with LED voltage display ~£7
+
+Bench / prototyping
+400-point solderless breadboard — ~£4
+Dupont jumper wires, M-M and M-F multipack — ~£6
+Digital multimeter — ~£10
+
+Rough total: ~£220.
+
+Week 4 - 10/07/2026
+Ordered the full BOM on 10 July. 
+
+13/07/2026
+First delivery arrived today:
+RPLIDAR A1M8 dev kit, SparkFun Dual TB6612FNG, 400-point breadboard, and M-M / M-F jumper wires. Still waiting on the JGA25-371 motors, chassis, ESP32, batteries and buck converters - motors are longer est. 22–27 July.
+Nothing to wire up yet without the ESP32, but the LiDAR arriving first is convenient: its dev kit includes the USB-to-serial adapter, which means I can bench-test it standalone on the laptop before the ESP32 relay exists.
+The TB6612's header strip ships loose so soldering is required in the build. Doing that before the ESP32 arrives so the board is breadboard-ready.
+
+17/07/2026
+ESP32 arrived:
+To figure out if: the toolchain cross-compiles, the port and permissions are right, the flash succeeds, the chip boots your code, and serial round-trips back. I set the data rate in bits per second (baud) for serial data transmission and then wrote data to the serial port. The monitor then printed hello in the terminal so i knew everything was working.
+
+Note: Was originally going to do a blink test but there is no built in LED on the dev board (figured out due to pin map) and i had no resistors and free LED's lying around. Serial test is superior anyway so no problems.
+
