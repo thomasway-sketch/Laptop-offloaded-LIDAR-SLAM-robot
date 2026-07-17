@@ -1,0 +1,21 @@
+# ROS2 
+build/
+install/
+log/
+
+# Rosbags
+*.db3
+*.mcap
+rosbag2_*/
+
+# Python
+__pycache__/
+*.pyc
+
+# PlatformIO
+.pio/
+
+# OS
+.DS_Store
+*.swp
+EOF
