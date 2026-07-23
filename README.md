@@ -4,8 +4,9 @@
 Autonomous indoor mapping &amp; navigation robot built with ROS2 — LiDAR SLAM (slam_toolbox) and Nav2, with on-robot sensing offloaded to a laptop over WiFi. Differentiator:object detection feeding the navigation costmap
 Stack: ROS2 Jazzy using Ubuntu 24.04. using python for most nodes and C++ for the costmap plugin.
 
-## Week 1 — ROS2 fundamentals 
-Day 1 — 20/06/2026: Orientation and sequencing
+## Week 1 - Phase 1 - 20/06/2026
+**ROS2 fundamentals:**
+Day 1: Orientation and sequencing
 Decided to do the official Jazzy beginner tutorials first, turtlesim for the sandbox learning nodes/topics/services, then doing the SLAM/Nav2 tutorial series, then hardware. The Addison series assumes you already know what a node, topic, and transform are.
 
 Decision logged: turtlesim before autonomy-stack tutorials
@@ -38,7 +39,7 @@ Overlay sourcing: The last file sourced takes precedent. setup.bash replays the 
 
 Decision logged: keep tutorial packages in the learning workspace; the real robot workspace stays clean from commit one.
 
-## Week 2 — tf2 (coordinate frames) 
+## Week 2 - tf2 (coordinate frames) 
 Day 8 — 30/06/2026: Why tf2, and the frame tree
 Started tf2: i understand it as a timestamped tree of frames, each with one parent, queryable at any past instant. 
 
@@ -125,8 +126,7 @@ Done: beginner CLI + client libraries, custom interfaces, parameters, full tf2 s
 Deliberately deferred: advanced intermediate tutorials as theyre out-of-scope. i will do pluginlib tutorial just before the Nav2 costmap plugin.
 URDF → launch files → then Phase 2 (slam_toolbox + Nav2 in Gazebo simulation on a simulated TurtleBot3).
 
-## Week 3 - 9/07/2026
-Phase 2 (simulation) complete.
+## Week 3 - Phase 2 - 9/07/2026
 Used Gazebo Harmonic with TB3, slam_toolbox, Nav2, RViz, all on Jazzy. Mapped the world with slam_toolbox. First the map came out doubled caused crashing into a wall while driving. Wheels kept turning but the robot didn't so odometry lied and the software laid the room down twice. I re-drove slowly and got a clean single-hexagon map. Saved pgm+yaml.
 
 Finally understand the map -> odom -> base_link tree properly: odometry gives smooth-but-drifting odom->base_link, SLAM/AMCL gives the correcting map→odom, and the split exists so controllers get continuity while planners get global accuracy. /map is the occupancy grid so the robot's actual position is the map->base_link transform, tf query and not a topic.
