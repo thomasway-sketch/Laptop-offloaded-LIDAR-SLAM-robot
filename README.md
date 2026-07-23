@@ -4,7 +4,7 @@
 Autonomous indoor mapping &amp; navigation robot built with ROS2 — LiDAR SLAM (slam_toolbox) and Nav2, with on-robot sensing offloaded to a laptop over WiFi. Differentiator:object detection feeding the navigation costmap
 Stack: ROS2 Jazzy using Ubuntu 24.04. using python for most nodes and C++ for the costmap plugin.
 
-Week 1 — ROS2 fundamentals 
+## Week 1 — ROS2 fundamentals 
 Day 1 — 20/06/2026: Orientation and sequencing
 Decided to do the official Jazzy beginner tutorials first, turtlesim for the sandbox learning nodes/topics/services, then doing the SLAM/Nav2 tutorial series, then hardware. The Addison series assumes you already know what a node, topic, and transform are.
 
@@ -30,8 +30,7 @@ Bug — value-vs-pointer: used -> on a bare AddressBook value, my confusion came
 
 Params concept: the parameters node declares once in __init__, then reads/rewrites in the loop — it does not re-declare each tick, and it does not create a publisher.
 
-Subjects of note:
-
+**Subjects of note:**
 When completing the colcon builds tutorial everything under src/ is built by default my output showed more packages than the tutorial because I'd accumulated several tutorials. --packages-select <pkg> fixes the issue.
 Removing a source package without deleting build/, install/, log/ leaves files that can still be sourced which can lead to bugs. Using rm -rf build install log and rebuild clean.
 Overlay sourcing: The last file sourced takes precedent. setup.bash replays the full recorded prefix chain; local_setup.bash adds only the current workspace. 
@@ -39,7 +38,7 @@ Overlay sourcing: The last file sourced takes precedent. setup.bash replays the 
 
 Decision logged: keep tutorial packages in the learning workspace; the real robot workspace stays clean from commit one.
 
-Week 2 — tf2 (coordinate frames)
+## Week 2 — tf2 (coordinate frames) 
 Day 8 — 30/06/2026: Why tf2, and the frame tree
 Started tf2: i understand it as a timestamped tree of frames, each with one parent, queryable at any past instant. 
 
@@ -120,13 +119,13 @@ A substitution is a deferred value across that gap, don't compute it now, comput
 An event handler is a deferred reaction across the same gap: Events occur at runtime you don't declare the events, you declare the handler. 
 Matchers to remember: OnProcessStart, OnProcessExit, OnProcessIO, OnShutdown, OnExecutionComplete. 
 
-Status at end of Week 2
+**Status at end of Week 2**
 
 Done: beginner CLI + client libraries, custom interfaces, parameters, full tf2 sequence (broadcaster/listener/adding-a-frame/time).
 Deliberately deferred: advanced intermediate tutorials as theyre out-of-scope. i will do pluginlib tutorial just before the Nav2 costmap plugin.
 URDF → launch files → then Phase 2 (slam_toolbox + Nav2 in Gazebo simulation on a simulated TurtleBot3).
 
-Week 3 - 9/07/2026
+## Week 3 - 9/07/2026
 Phase 2 (simulation) complete.
 Used Gazebo Harmonic with TB3, slam_toolbox, Nav2, RViz, all on Jazzy. Mapped the world with slam_toolbox. First the map came out doubled caused crashing into a wall while driving. Wheels kept turning but the robot didn't so odometry lied and the software laid the room down twice. I re-drove slowly and got a clean single-hexagon map. Saved pgm+yaml.
 
@@ -136,12 +135,12 @@ The Real root cause was behavior_server and docking_server was failing to config
 The Fix: enable_stamped_cmd_vel across all nodes cmd_vel nodes. Set it globally with a /** wildcard plus explicit per-node lines. There's no valid mixed state — all Twist or all TwistStamped.
 Full autonomous nav works. I can now set initial pose, send a goal and the robot plans and drives around the cylinders to the target. First goal turned-paused-then-went while localization converged; every goal since is clean.
 
-Subjects of note:
+**Subjects of note:**
 When a lifecycle node fails to configure, read the bringup logs first - a half-started stack makes every other symptom meaningless.
 tf exception direction is diagnostic - earlier than cache (past) vs extrapolation into future (future) fail for opposite reasons.
 
-Phase 3:
-Bill of Materials — ordered 10 July 2026
+## Phase 3:
+**Bill of Materials** — ordered 10 July 2026
 Drive
 2× JGA25-371 geared DC motor, 12 V, 130 RPM, metal gearbox, with Hall quadrature encoder. ~£20/pair
 2WD acrylic chassis kit (~22 × 15 cm) - deck, ball caster, standoffs, hardware. ~£21
@@ -177,7 +176,42 @@ The TB6612's header strip ships loose so soldering is required in the build. Doi
 
 17/07/2026
 ESP32 arrived:
-To figure out if: the toolchain cross-compiles, the port and permissions are right, the flash succeeds, the chip boots your code, and serial round-trips back. I set the data rate in bits per second (baud) for serial data transmission and then wrote data to the serial port. The monitor then printed hello in the terminal so i knew everything was working.
+To figure out if: the toolchain cross-compiles, the port and permissions are right, the flash succeeds, the chip boots your code, and serial round-trips back. I set the data rate in bits per second (baud) for serial data transmission and then wrote data to the serial port. The monitor then printed hello in the terminal so I knew everything was working.
 
-Note: Was originally going to do a blink test but there is no built in LED on the dev board (figured out due to pin map) and i had no resistors and free LED's lying around. Serial test is superior anyway so no problems.
+Note: Was originally going to do a blink test but there is no built in LED on the dev board (figured out due to pin map) and I had no resistors and free LED's lying around. Serial test is superior anyway so no problems.
 
+18/07/2026 
+**ESP32 pin map**
+
+*Off-limits from the start:*
+GPIO 6–11 - Using them stops the board booting.
+GPIO 1/3 - UART0, the USB serial console. That's how I flash the board and read Serial.println
+GPIO 0/2/12/15 - these are strapping pins. A signal on one of these during reset can stop the board coming up.
+
+*The mistake I made first:* I assigned the TB6612's control pins to GPIO 34–39 and the encoders to 4/0/2/15. However the motor driver's PWMA/AIN1/AIN2 etc. are inputs to the driver, so they're outputs from the ESP32. I had this backwards - and 34/35/36/39 are input-only pins that physically can't be used as output. luckily I figured out my mistake before it affected my build.
+
+*Corrected:*
+I gave the encoders GPIO 34/35/36/39. They are input-only pins, this is fine and it spends four otherwise-limited pins on the one job that doesn't need to output anything. 
+Motor driver → GPIO 4/18/19/21/22/23/27. Seven clean pins with no strapping duty and no flash. PWMA/PWMB on 23/22 - PWM comes from the LEDC peripheral on esp32, which routes to any output pin, so this was a free choice.
+STBY on a GPIO rather than tied high, so firmware can cut both motors.
+
+LiDAR → GPIO 16. The RPLIDAR A1 streams continuously and fast so it needs a hardware UART. UART0 is the console and UART1 apparently tangles with the flash pins, which leaves UART2 - default RX on GPIO 16. 16/17 were originally what I was going to use as motor driver pins, so I moved those to 14 and 27.
+
+MOTOCTL (The LiDAR scan-motor control) I deliberately left unassigned until step 5.
+I may just tie it high instead of using another GPIO.
+
+**First steps of building** - 22/07/2026 and 23/07/2026 
+
+Buck converter. Set to 5.0 V with the output disconnected, verified on the multimeter before anything else was connected. Settled at 4.98 V and left it there.
+
+Barrel jack detour. The 8×AA holder terminates in a 5.5×2.1 mm barrel plug and not the bare wires needed so I bought a female pigtail adapter. The pigtail's stranded wires don't enter breadboard holes, they are too thick.
+I fixed it by making the battery go straight into the buck's input screw terminals, and VM feeds directly from the in+ node.
+
+*ESP32 DevKitC does not fit a single breadboard* 
+The ESP32 DevKitC is wider than 0.3" which is the standard centre channel, so its pins don't land with free holes beside them. Breadboard channel widths are apparently standardised, so no purchase would be able to fix it.
+I worked around this with female-to-male jumpers with the devkit beside the breadboard; the proper fix is two boards butted together with the ESP32 spanning the join.
+
+*laptop grounding*
+The TB6612 decides whether an incoming signal is "high" by comparing it against its own ground - if the two boards don't share a reference the 3.3 V from the ESP32 means nothing to the driver. And when the USB is plugged in the laptop can quietly provide that ground path so a missing ground wire works on the bench and fails the moment the robot is removed from the laptop. Wired explicitly rather than relying on it.
+
+Rail still reads 5 V under load with everything connected. Power layer is finished.
