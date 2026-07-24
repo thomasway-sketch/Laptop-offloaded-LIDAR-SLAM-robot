@@ -202,7 +202,9 @@ I may just tie it high instead of using another GPIO.
 
 **First steps of building** - 22/07/2026 and 23/07/2026 
 
-Buck converter. Set to 5.0 V with the output disconnected, verified on the multimeter before anything else was connected. Settled at 4.98 V and left it there.
+The wheels with the encoders finally arrived so i started on the wiring.
+
+First the buck converter. Set to 5.0 V with the output disconnected, verified on the multimeter before anything else was connected. Settled at 4.98 V and left it there.
 
 Barrel jack detour. The 8×AA holder terminates in a 5.5×2.1 mm barrel plug and not the bare wires needed so I bought a female pigtail adapter. The pigtail's stranded wires don't enter breadboard holes, they are too thick.
 I fixed it by making the battery go straight into the buck's input screw terminals, and VM feeds directly from the in+ node.

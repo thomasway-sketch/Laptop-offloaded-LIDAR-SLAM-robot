@@ -2,8 +2,8 @@
 
 | ESP32 pin | Connects to           | Direction (ESP32) | 
 |-----------|-----------------------|-------------------|
-| GPIO 23   | TB6612 PWMA           | Output            | 
-| GPIO 22   | TB6612 PWMB           | Output            | 
+| GPIO 22   | TB6612 PWMA           | Output            | 
+| GPIO 23   | TB6612 PWMB           | Output            | 
 | GPIO 21   | TB6612 AIN1           | Output            | 
 | GPIO 19   | TB6612 AIN2           | Output            | 
 | GPIO 18   | TB6612 BIN1           | Output            | 
