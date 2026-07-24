@@ -217,3 +217,22 @@ I worked around this with female-to-male jumpers with the devkit beside the brea
 The TB6612 decides whether an incoming signal is "high" by comparing it against its own ground - if the two boards don't share a reference the 3.3 V from the ESP32 means nothing to the driver. And when the USB is plugged in the laptop can quietly provide that ground path so a missing ground wire works on the bench and fails the moment the robot is removed from the laptop. Wired explicitly rather than relying on it.
 
 Rail still reads 5 V under load with everything connected. Power layer is finished.
+
+**first motor turning** - 24/07/2026 
+*Motor wiring* 
+The JGA25 has six wires (red, white, blue, green, yellow and black). The supplier's colour chart says red is motor power + and white is motor power. They go to the TB6612 outputs (A01/A02). The other four (black/blue/yellow/green) are the encoder which i will leave disconnected until step 4. The motor polarity doesn't matter swapping red and white would just flip the direction - so I wired it either way and i will fix direction in code or by swapping wires once I see which way it spun.
+
+*PWM setup.* 
+The PWM on the ESP32 comes from the LEDC peripheral. Configured a channel with ledcSetup, attached it to the PWM pin with
+ledcAttachPin, and wrote duty with ledcWrite. Chose 20 kHz (Quick search said that was fine) and 8-bit resolution. Found the information on how to use the LEDC peripherial on ESP32 LED control docs
+
+*Some errors*
+- I passed 255 as the resolution argument to the ledcSetup function instead of 8. That argument is in bits, and not a range.
+- Originally tried to use analogWrite which bypassed the LEDC channel I'd just set up. I Replaced that with ledcWrite.
+
+*Framework version.* 
+PlatformIO defaulted to Arduino core 2.0.17 which is the older channel-based LEDC API (ledcSetup/ledcAttachPin). Most examples
+use 3.x and won't be too useful on 2.x.
+
+*Wrap up*
+The wheel spins up at duty 128 and reverses on command, I used a serial output which confirmed the code is running and narrates each direction change.
