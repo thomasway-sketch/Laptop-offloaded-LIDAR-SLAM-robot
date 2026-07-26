@@ -236,3 +236,56 @@ use 3.x and won't be too useful on 2.x.
 
 *Wrap up*
 The wheel spins up at duty 128 and reverses on command, I used a serial output which confirmed the code is running and narrates each direction change.
+
+25/07/2026-26/07/2026
+**Data transport architecture decision**
+
+In step 3 i am getting the cmd_vel topic from the laptop to the ESP32 to move the motors.
+After doing some research i could either use micro-ROS where the ESP32 becomes an ROS2 node, or the laptop will act as a bridge for the robot. Chose the bridge.
+
+My reasoning is that I am still learning and doing it the bridge way keeps the WiFi link visible so i can see where things break. micro-ROS apparently buries the transport inside machinery I can't easily inspect which would make debugging harder. The bridge should cost nothing measurable in latency because the WiFi itself is the bottleneck either way. I will isolate the transport is isolated so it can be swapped for micro-ROS later which i may do at the end of the project if time allows. 
+
+I will send linear.x and angular.z over the wire and do the differential-drive kinematics on the ESP32 which keeps the bridge a pure transport.
+
+First i got the ESP32 onto the network and printing its IP. Used the built-in WiFi.h. WiFi.begin(ssid, password), loop until connected,
+print WiFi.localIP(). Connected first try.
+
+I then checked the signal, RSSI sampled several times and typically -49 to -55 dBm which is well within acceptable range however, this was measured on the bench near the router. i will need to re-verify once mobile.
+
+Note: The ESP32 radio is 2.4 GHz only so it can't see a 5 GHz
+network and fails silently if pointed at one. Wasn't an issue but it's the first thing to i will check if a connection fails.
+
+I put my WiFi SSID and password in a credentials file which is kept out of the tracked source (.gitignored) since this is a public repo.
+
+
+I built the transport bottom-up with no ROS and no motors until each layer was proven.
+
+1. My ESP32 listened on a UDP port and prints whatever arrives using WiFiUDP.
+2. I Fired a packet from the laptop using `echo "hello" | nc -u <ip> <port>`.
+   The character values appeared on the serial monitor proving the packet had arrived i then coded it to translate the character values into ascii and add them to a string variable, i then printed that variable to the serial and it printed `hello` so i knew it functioned.
+3. Wrote the bridge node which is a Python ROS2 node that subscribes to /cmd_vel, relaying linear.x and angular.z to the ESP32 as UDP packet.
+
+**Bugs in the bridge pipeline**
+
+There were three bugs between in the dev proccess, and none of which threw an error, they were all silent.
+
+*TwistStamped structure.*
+Callback used msg.linear.x and got "no attribute linear". TwistStamped wraps a Twist inside a header which is one level deeper than plain Twist. I chose TwistStamped deliberately its header timestamp is what my stale-command watchdog can use later.
+
+*Double-read on the ESP32.* 
+Serial printed ".,05" instead of "0.2, 0.5". My while loop called wifiUDP.read() twice per iteration once to test the byte, once to print the next one. This caused it to print every second byte and dropped the rest. The data had arrived perfectly. Fixed by reading the ascii value into an int variable and then using that for the test and the print.
+
+**DHCP Problems**
+
+Came back the next day, added float-parsing on the ESP32 and found packets no longer
+arriving. My testing showed the ESP32's IP had changed from what the bridge was
+sending to.
+
+The cause was that the router hands out addresses on a DHCP lease which expires. DHCP had given it a new lease, so the bridge was firing packets at the old address and UDP gives no error when nobody's listening so it failed silently.
+
+To fix this i gave it a static IP in firmware via WiFi.config() with an address outside the
+router's DHCP pool to avoid conflicts. Chose static-in-firmware over a router-side
+DHCP reservation because the network config then lives in the repo.
+
+After doing some research i found i could make the ESP an access point but in the end i decidded to stay on station mode (joining home WiFi). AP mode would fix the DHCP by definition and is more portable however, the laptop can't be on the ESP32's network and my home WiFi at once and I
+need internet for ROS package installs during development. I could change this at the end of the project if time allows.
