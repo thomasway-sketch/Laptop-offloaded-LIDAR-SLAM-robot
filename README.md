@@ -289,3 +289,11 @@ DHCP reservation because the network config then lives in the repo.
 
 After doing some research i found i could make the ESP an access point but in the end i decidded to stay on station mode (joining home WiFi). AP mode would fix the DHCP by definition and is more portable however, the laptop can't be on the ESP32's network and my home WiFi at once and I
 need internet for ROS package installs during development. I could change this at the end of the project if time allows.
+
+*Some references i used to accomplish this step:*
+- https://docs.arduino.cc/language-reference/en/functions/wifi/udp/
+- https://docs.arduino.cc/language-reference/en/functions/wifi/wificlass/
+- https://wiki.python.org/moin/UdpCommunication.html
+- https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html
+
+
