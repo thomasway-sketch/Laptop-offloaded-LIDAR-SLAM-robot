@@ -21,6 +21,7 @@
 #define currentPort 8889
 
 WiFiUDP wifiUDP;
+WiFiUDP debugMonitor;
 int character;
 String msg;
 
@@ -35,10 +36,10 @@ float v_right;
 int d_left;
 int d_right;
 
-int LG_Count = 0;
-int RG_Count = 0;
-int LG_Count_prev = 0;
-int RG_Count_prev = 0;
+volatile long LG_Count = 0;
+volatile long RG_Count = 0;
+volatile long LG_Count_prev = 0;
+volatile long RG_Count_prev = 0;
 
 int LD = 0; // left direction
 int RD = 0; // right direction
@@ -91,6 +92,8 @@ void setup() {
   }
 
   wifiUDP.begin(currentPort);
+
+  debugMonitor.begin(8887);
 
   attachInterrupt(digitalPinToInterrupt(LEFT_ENCODERG), LspeedDirectionCheck, RISING);
   attachInterrupt(digitalPinToInterrupt(RIGHT_ENCODERG), RspeedDirectionCheck, RISING);

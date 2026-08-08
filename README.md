@@ -317,4 +317,11 @@ pins, CHANGE but thought this was too many ISR's for the job.
 Key correction to my own first plan is that i cannot reset the counter when sampling speed. Resetting destroys the cumulative total that odometry needs. Instead i will keep one running count and compute speed from the delta between samples,
 divided by measured elapsed time from millis() — never by an assumed interval, so a late loop pass stays accurate. 
 
+**Chassis: refund and rebuild**
+The kit chassis didn't work out. There were two problems: poor quality, and the JGA25 encoders were too long on the undersized deck - a fit i did not take into account because the kit was bought for its deck/caster/hardware, not its motors. Refunded.
+
+I decided to move to a custom 3mm A4 acrylic deck. With this i have full control over motor spacing and the LiDAR's 360° sightline, neither of which that pre-drilled kit deck allowed. Checked fit with a cardboard mockup first and a plain A4 rectangle holds the two-wheel-plus-caster layout without needing to cut a shape, just drill mounting holes.
+
+3mm thickness chosen: rigid enough not to flex under the battery and motor weight, light enough not to burden the motors.
+
 
