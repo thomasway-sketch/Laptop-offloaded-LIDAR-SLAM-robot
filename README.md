@@ -277,9 +277,7 @@ Serial printed ".,05" instead of "0.2, 0.5". My while loop called wifiUDP.read()
 
 **DHCP Problems**
 
-Came back the next day, added float-parsing on the ESP32 and found packets no longer
-arriving. My testing showed the ESP32's IP had changed from what the bridge was
-sending to.
+Came back the next day, added float-parsing on the ESP32 and found packets no longer arriving. My testing showed the ESP32's IP had changed from what the bridge was sending to.
 
 The cause was that the router hands out addresses on a DHCP lease which expires. DHCP had given it a new lease, so the bridge was firing packets at the old address and UDP gives no error when nobody's listening so it failed silently.
 
@@ -295,5 +293,28 @@ need internet for ROS package installs during development. I could change this a
 - https://docs.arduino.cc/language-reference/en/functions/wifi/wificlass/
 - https://wiki.python.org/moin/UdpCommunication.html
 - https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html
+
+29/07/2026 
+
+**Wheel separation and the velocity-mixing ceiling**
+
+I measured wheel separation L = 0.254m (using centre-of-tread to centre-of-tread). L/2 = 0.127m is the constant in the kinematics (v_left = v − ω·L/2, v_right = v + ω·L/2).
+
+I randomly thought of a problem that would occur if not coded for carefully: at max forward speed plus a turn, the outer wheel's commanded speed exceeds what the motor can deliver. My duty conversion clamps it to 255, so the outer wheel caps but the inner keeps a reduced speed, meaning the robot under-turns at high speeds. 
+ 
+**Encoders: quadrature decoding by interrupt**
+
+Verified one encoder produces a clean square wave by hand before building anything on top of it by spinning the shaft.
+
+The signal: The second channel is offset 90° (quadrature), so at an edge of channel A, the level of channel B encodes direction.
+
+Why use interrupts: The pulses come too fast to catch in the loop() - edges fall between loop passes and the count silently drifts. An ISR fires on every edge at hardware speed and just bumps a counter;
+loop() reads it whenever. The counter must be signed (it goes negative in reverse).
+
+Design: worked out that i will need two ISRs, one per wheel. Each reads its wheel's channel B to decide direction and increments/decrements one cumulative signed counter. Started at all four
+pins, CHANGE but thought this was too many ISR's for the job.
+
+Key correction to my own first plan is that i cannot reset the counter when sampling speed. Resetting destroys the cumulative total that odometry needs. Instead i will keep one running count and compute speed from the delta between samples,
+divided by measured elapsed time from millis() — never by an assumed interval, so a late loop pass stays accurate. 
 
 
