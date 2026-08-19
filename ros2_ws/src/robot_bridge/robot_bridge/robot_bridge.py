@@ -14,7 +14,7 @@ class RobotBridge(Node):
             self.bridge_publish,
             10)
         self.subscription  # prevent unused variable warning
-        self.UDP_IP = "192.168.4.210"
+        self.UDP_IP = "192.168.4.211"
         self.UDP_PORT = 8889
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     def bridge_publish(self, msg):

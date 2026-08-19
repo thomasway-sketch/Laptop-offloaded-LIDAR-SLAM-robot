@@ -22,13 +22,14 @@
 
 WiFiUDP wifiUDP;
 WiFiUDP debugMonitor;
+WiFiUDP odomSend;
 int character;
 String msg;
 
 float linear;
 float angular;
 float length= 0.254;
-float max_speed = 0.51; // m/s
+float max_speed = 0.45; // m/s
 
 float v_left;
 float v_right;
@@ -50,11 +51,15 @@ float true_speed_right;
 
 unsigned long watchdogTime;
 unsigned long myTime;
+unsigned long sendTimeOdom;
+unsigned long sendTimeMonitor;
 
 int dutyConversion(float v_wheel);
 void d_reverse(int highPin, int lowPin);
 void RspeedDirectionCheck();
 void LspeedDirectionCheck();
+
+IPAddress laptop_ip(192, 168, 4, 51);
 
 void setup() {
   // put your setup code here, to run once:
@@ -81,7 +86,7 @@ void setup() {
   
   WiFi.begin(ssid, password);
 
-  IPAddress local_IP(192, 168, 4, 210);
+  IPAddress local_IP(192, 168, 4, 211);
   IPAddress gateway(192, 168, 4, 1);     // your router's address
   IPAddress subnet(255, 255, 255, 0);
   WiFi.config(local_IP, gateway, subnet);
@@ -94,12 +99,14 @@ void setup() {
   wifiUDP.begin(currentPort);
 
   debugMonitor.begin(8887);
+  odomSend.begin(8886);
 
   attachInterrupt(digitalPinToInterrupt(LEFT_ENCODERG), LspeedDirectionCheck, RISING);
   attachInterrupt(digitalPinToInterrupt(RIGHT_ENCODERG), RspeedDirectionCheck, RISING);
 
   myTime = millis();
   watchdogTime = millis();
+  sendTimeOdom = millis();
 
 }
 
@@ -166,14 +173,7 @@ void loop() {
 
   d_left = dutyConversion(v_left);
   d_right = dutyConversion(v_right);
-
-  Serial.println(msg);
-  Serial.println(linear);
-  Serial.println(angular);
-  Serial.println(v_left);
-  Serial.println(v_right);
-  Serial.println(d_left);
-  Serial.println(d_right);
+ 
 
   ledcWrite(PWMA_CHANNEL, d_left);
   ledcWrite(PWMB_CHANNEL, d_right);
@@ -185,8 +185,44 @@ void loop() {
     RG_Count_prev = RG_Count;
     myTime = millis();
   }
-  Serial.println("true_speed_left: " + String(true_speed_left));
-  Serial.println("true_speed_right: " + String(true_speed_right));
+
+  if(millis() - sendTimeMonitor > 1000){
+    debugMonitor.beginPacket(laptop_ip, 8887);
+    debugMonitor.print("msg: ");
+    debugMonitor.println(msg);
+    debugMonitor.print("linear: ");
+    debugMonitor.println(linear);
+    debugMonitor.print("angular: ");
+    debugMonitor.println(angular);
+    debugMonitor.print("v_left: ");
+    debugMonitor.print(v_left);
+    debugMonitor.print("  v_right: ");
+    debugMonitor.println(v_right);
+    debugMonitor.print("d_left: ");
+    debugMonitor.print(d_left);
+    debugMonitor.print("  d_right: ");
+    debugMonitor.println(d_right);
+    debugMonitor.print("true_speed_left: ");
+    debugMonitor.print(true_speed_left);
+    debugMonitor.print("  true_speed_right: "); 
+    debugMonitor.println(true_speed_right);
+    debugMonitor.print("LG_Count: ");
+    debugMonitor.print(LG_Count);
+    debugMonitor.print("  RG_Count: ");
+    debugMonitor.println(RG_Count);
+    debugMonitor.endPacket();
+    sendTimeMonitor = millis();
+  }
+
+  if(millis() - sendTimeOdom > 50){
+    odomSend.beginPacket(laptop_ip, 8886);
+    odomSend.print(LG_Count);
+    odomSend.print(",");
+    odomSend.print(RG_Count);
+    odomSend.endPacket();
+    sendTimeOdom = millis();
+  }
+
 
 }
 
@@ -211,11 +247,11 @@ void d_reverse(int highPin, int lowPin){
 void RspeedDirectionCheck(){
   if(digitalRead(RIGHT_ENCODERY) == HIGH){
     RD = 1;
-    RG_Count++;
+    RG_Count--;
   }
   else{
     RD = 0;
-    RG_Count--;
+    RG_Count++;
   }
   
 }

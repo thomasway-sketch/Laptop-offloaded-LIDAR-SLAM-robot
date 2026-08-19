@@ -324,4 +324,40 @@ I decided to move to a custom 3mm A4 acrylic deck. With this i have full control
 
 3mm thickness chosen: rigid enough not to flex under the battery and motor weight, light enough not to burden the motors.
 
+2/08/2026 
+**Wireless serial monitor**
+For untethered testing I needed to see the ESP32's debug output without a USB cable trailing off the robot. to do this I reused the transport already working, sending debug strings back over UDP to the laptop with a listener printing them.
 
+On the ESP32 side i made a second WiFiUDP object, so it
+doesn't flood the network or the listener. Laptop side a Python socket listener binding the debug port and printing what arrives.
+
+The WiFiUDP reference page lists write() but not print() however print()/println() still work because WiFiUDP inherits them from the
+Print/Stream base class — the same reason Serial.print works. The class has more methods than its own page shows.
+
+
+2/08/2026 
+Board swap broke WiFi; UDP receive debugging. Swapped in the second ESP32 during debugging and lost UDP reception.
+
+Isolation: the netcat probe from way back bypasses ROS and the bridge entirely. It failed too, so the fault was on the ESP32 receive side, not the bridge.
+
+Contributing issues found:
+- WiFi.config() was called AFTER WiFi.begin(). 
+- Briefly suspected that you can't create two WiFiUDP objects wrong. Two objects are fine, the real issues were the config ordering and the parse structure. 
+
+3/08/2026 
+**Teleop Twist vs TwistStamped**
+
+Robot drove correctly from a manual ros2 topic pub using TwistStamped, but not from teleop_twist_keyboard. The pub working proved the whole pipeline so problem must be with the teleop keyboard.
+
+Cause: teleop_twist_keyboard publishes plain Twist by default and the bridge subscribes to TwistStamped. Mismatched types means the subscription never fires, no error, just silence. 
+This has been the recurring footgun, now for the third
+time.
+
+Fix: run teleop with `--ros-args -p stamped:=true` so it emits TwistStamped which matches the bridge.
+
+
+4/08/2026
+Everything temporarily mounted on the chassis (with nothing soldered yet), and the robot now drives under keyboard teleop end to end: teleop → bridge → WiFi → ESP32 → kinematics → motors. 
+The wireless monitor shows every value i commanded it to.
+
+Step 3 complete: velocity commands over WiFi move the robot. Step 4's foundation also proven — directional quadrature counting and real per-wheel speed from the encoders. Layout validated on temporary mounts before committing to soldered wiring. 

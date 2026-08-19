@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'remote_monitor'
+package_name = 'odom_pub'
 
 setup(
     name=package_name,
@@ -24,7 +24,6 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'remote_monitor = remote_monitor.remote_monitor:main'
         ],
     },
 )
