@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'odom_pub = odom_pub.odom_pub:main'
         ],
     },
 )

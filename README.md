@@ -344,7 +344,7 @@ Contributing issues found:
 - WiFi.config() was called AFTER WiFi.begin(). 
 - Briefly suspected that you can't create two WiFiUDP objects wrong. Two objects are fine, the real issues were the config ordering and the parse structure. 
 
-3/08/2026 
+5/08/2026 
 **Teleop Twist vs TwistStamped**
 
 Robot drove correctly from a manual ros2 topic pub using TwistStamped, but not from teleop_twist_keyboard. The pub working proved the whole pipeline so problem must be with the teleop keyboard.
@@ -356,8 +356,110 @@ time.
 Fix: run teleop with `--ros-args -p stamped:=true` so it emits TwistStamped which matches the bridge.
 
 
-4/08/2026
+6/08/2026
+**First drive**
 Everything temporarily mounted on the chassis (with nothing soldered yet), and the robot now drives under keyboard teleop end to end: teleop → bridge → WiFi → ESP32 → kinematics → motors. 
 The wireless monitor shows every value i commanded it to.
 
 Step 3 complete: velocity commands over WiFi move the robot. Step 4's foundation also proven — directional quadrature counting and real per-wheel speed from the encoders. Layout validated on temporary mounts before committing to soldered wiring. 
+
+14/08/2026
+**The odom_pub node (publishes odometry)**
+
+I built an ROS2 node that turns the encoder counts into the robot's pose and publishes it to ROS as /odom, also publishes the odom→base_link transform.
+
+Architecture:
+Computed on laptop. The ESP32 sends the wheels counts back over UDP (Uses another WiFiUDP object); a Python node receives them and does all the kinematics. 
+Reasons: keeps the ESP32 a simple relay, and it's easier to debug and visualise.
+
+Per received packet:
+- Difference the counts against the previous packet, over the elapsed time.
+- The command kinematics run backwards): v = (v_left + v_right)/2, ω = (v_right - v_left)/L.
+- Accumulate x, y, θ as a running sum of small steps. Used the
+  small-step approximation — each step treated as straight in the current heading, then θ updated.
+- Normalised θ and converted to a quaternion
+- Publish nav_msgs/Odometry
+
+Bugs caught building it:
+- I used the static transform broadcaster at first which was wrong. odom→base_link changes every packet, so it needs the regular TransformBroadcaster; static is
+  for fixed mounts such as the LiDAR offset.
+
+Note: this node uses its own blocking while-loop on the UDP socket rather than rclpy.spin() because the input is a raw socket ROS doesn't manage. I wrapped it in try/except KeyboardInterrupt / finally so Ctrl+C actually runs the cleanup instead of skipping it.
+
+17/08/2026
+**Odometry validated in RViz; RViz wouldn't launch**
+
+Wanted to verify odometry visually. However, RViz refused to open and gave the error: "Unable to create the rendering window after 100 tries."
+
+Debugging, layer by layer:
+- The error was buried in a bunch of error messages saying "Unable to create glx context / Failed to create an OpenGL context - BadValue". It was a GLX/driver problem, not windowing.
+- nvidia-smi: "couldn't communicate with the NVIDIA driver." The driver wasn't loaded. A reboot didn't fix it.
+
+Fix: reinstalled the driver using ubuntu-drivers autoinstall, reboot, nvidia-smi healthy, RViz opened.
+
+**Straight-line curve: weaker motor, not a broken encoder**
+
+Both wheels commanded to the same speed, but the robot curved - the right wheel logged more counts. Two hypotheses: Same PWM gives
+different speeds or the encoder's faulty.
+
+Isolation: does the robot physically curve or does it drive straight while odometry only thinks it has a turn? It physically curved meaning the encoders were correctly reporting real motion, not faulty encoders. One motor is just weaker.
+
+The curve was larger than typical mismatch, so fixed it by calibrating a different max_speed per wheel, so equal commanded speeds now produce roughly equal actual speeds. Residual drift is minimal — within SLAM tolerance hopefully — and some of the cause may be temporary breadboard wiring which i will reassess after soldering. **Proper fix (per-wheel PID closed-loop, using the encoder speed I already measure) deferred unless drift returns post-solder.**
+
+24/08/2026 
+**LiDAR bench test**
+
+Before wiring the LiDAR to the ESP32, tested it standalone over USB straight into the laptop - isolating "does the sensor and driver work" from "does my relay work", so any later garbage is attributable to the relay.
+
+There is a ros-jazzy-rplidar-ros prebuilt Jazzy binary. The generic launch file already had the right settings hardcoded: /dev/ttyUSB0, 115200 baud (A1/A2), frame_id "laser".
+
+First run failed with a RESULT_OPERATION_TIMEOUT error. The motor was spinning, which is misleading but the A1's motor is driven by a power rail so that doesn't mean anything is truly working only that power is arriving. Fixed by reseating the connector - the adapter was making powercontact but not data contact.
+
+Result: clean scan, red lines matching real walls.
+
+26/08/2026 
+**Reading the A1 datasheet**
+
+
+*TX is 3.3V, not 5V.* 
+One table lists TX as 0–5V, which I'd read as a 5V output needing level shifting to protect the ESP32's 3.3V GPIO. The detailed signal spec says otherwise, "RPLIDAR A1 uses 3.3V-TTL serial port (UART)", output high 2.9V typical / 3.5V max. 
+The 0–5V figure is an absolute maximum rating, not the actual
+swing. So the level shifter I'd bought is redundant but harmless, left in circuit as a pass-through, but not needed.
+
+*Power draw is significant and wants separating.* 
+Scanner start current 500–600mA, work mode 300–350mA, motor ~100mA.
+The datasheet explicitly recommends powering scanner and motor separately.. Motors are noisy with high-current loads, the scanner wants clean supply. Noted as a real risk of running everything off one buck, with the second buck held as the fix.
+
+CTRL_MOTO decided: tied to the 5V rail so the motor runs continuously whenever powered. GPIO control was rejected because it is unnecessary complexity for bring-up; revisit only if battery life becomes a constraint.
+
+27/08/2026 
+**Moving to stripboard**
+
+Went permanent, mainly because the Dupont jumper mess would block the LiDAR's 360° scan plane. Layout had been validated on temporary mounts first, which was the whole point of staying reversible until now.
+
+Choices:
+- *Stripboard over plain perfboard* - the continuous strips map onto the power rails, so far less wiring. Bought a multi-board set: spares matter for a first permanent build, since mistakes are likely and desoldering is worse than
+  starting a fresh board.
+- *Socketed the ESP32 and TB6612* 
+Used female header strips cut to length and plugged modules in. Keeps the two most valuable and most failure-prone components removable, and means the iron never goes near them.
+
+30-31/08/2026 — Post-solder debugging: three faults
+
+Nothing worked untethered after the rebuild. Three separate problems, found in sequence.
+
+*1. Cut pigtail, broken strands.* 
+The battery-to-buck pigtail had factory-tinneds. Cutting it to length removed those, exposing bare stranded copper that lost strands. Fewer strands meant voltage lost under load.
+Re-terminated and tinned the ends properly, which is what the factory tips were doing all along.
+
+*2. Voltage drop at the ESP32.* 
+Measured 5.0V rail-to-ground but only 3.8V was between the ESP32's own 5V and GND pins. So 1.2V was being lost in the connections to the board. Fixed the joints which brought the voltage back up to an acceptable 4.7v.
+
+*3.ESP32 ground wired into PWMB.* 
+Harmless but it meant the ESP32 had no proper ground return except through USB  which meant everything worked tethered and nothing worked on battery.
+
+Diagnosed due to the encoder LED flickered rapidly on battery power but was steady on USB. A fast flicker means the rail is oscillating  the ESP32 had never stayed alive long enough to connect to WiFi. 
+
+*4. Faulty solid core wire.*
+After fixing previous errors I tested the wheels movement using the teleop keyboard and found that sometimes the wheel functioned as intended and other times I only got silence. Using the remote monitor I found that all the commands were being sent through but not reaching the wheels sometimes.
+
+Diagnosed: When i pushed on the wires the wheels started to function again. I narrowed the problematic wire down the the STBY ESP to motor driver connection, most likely a break half way down the wire, and replaced it.

@@ -3,7 +3,7 @@ import math
 import rclpy
 from rclpy.node import Node
 import socket
-from tf2_ros.static_transform_broadcaster import TransformBroadcaster
+from tf2_ros.transform_broadcaster import TransformBroadcaster
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Quaternion   # if you build the quaternion by hand
 from geometry_msgs.msg import TransformStamped
@@ -14,7 +14,7 @@ class OdomPub(Node):
     def __init__(self):
         super().__init__('odom_pub')
         self.publisher_ = self.create_publisher(Odometry, 'odom', 10)
-        self.UDP_IP = "192.168.4.51"
+        self.UDP_IP = "192.168.4.212"
         self.UDP_PORT = 8886
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((self.UDP_IP, self.UDP_PORT))
@@ -100,20 +100,22 @@ def main(args=None):
     rclpy.init(args=args)
 
     odom_pub = OdomPub()
-    while True:
-        data, addr = odom_pub.sock.recvfrom(1024)
-        if data:
-            while True:
-                data, addr = odom_pub.sock.recvfrom(1024)
-                if data:
+    firstpass = False
+    try:
+        while True:
+            data, addr = odom_pub.sock.recvfrom(1024)
+            if data:
+                if firstpass:
                     data = data.decode()
                     LG, RG = data.split(',')
                     linear_vel, angular_vel = odom_pub.twist_calc(LG, RG)
                     odom_pub.pose_calc(linear_vel, angular_vel, odom_pub.delta_time)
                     odom_pub.odom_publish(linear_vel, angular_vel)
                     odom_pub.transform_pub()
-
-
+                else: 
+                    firstpass = True
+    except KeyboardInterrupt:
+        pass
 
 
     # Destroy the node explicitly

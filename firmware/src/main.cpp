@@ -3,19 +3,20 @@
 #include <WiFiUdp.h>
 #include "credentials.cpp"
 
-#define PWMA 22
+#define PWMA 23
 #define PWMA_CHANNEL 0
-#define PWMB 23
+#define PWMB 22
 #define PWMB_CHANNEL 1
-#define AIN1 21
-#define AIN2 19
+#define AIN1 19
+#define AIN2 21
 #define BIN1 18
 #define BIN2 4
-#define STBY 27
+#define STBY 14
 #define LEFT_ENCODERG 34
 #define LEFT_ENCODERY 35
 #define RIGHT_ENCODERG 36
 #define RIGHT_ENCODERY 39
+#define RX 27
 
 
 #define currentPort 8889
@@ -29,7 +30,8 @@ String msg;
 float linear;
 float angular;
 float length= 0.254;
-float max_speed = 0.45; // m/s
+float Lmax_speed = 0.42; // m/s
+float Rmax_speed = 0.535; // m/s
 
 float v_left;
 float v_right;
@@ -42,24 +44,26 @@ volatile long RG_Count = 0;
 volatile long LG_Count_prev = 0;
 volatile long RG_Count_prev = 0;
 
+
 int LD = 0; // left direction
 int RD = 0; // right direction
 
 float true_speed_left;
 float true_speed_right;
 
+String STBY_val = "LOW";
 
 unsigned long watchdogTime;
 unsigned long myTime;
 unsigned long sendTimeOdom;
 unsigned long sendTimeMonitor;
 
-int dutyConversion(float v_wheel);
+int dutyConversion(float v_wheel, float max_speed);
 void d_reverse(int highPin, int lowPin);
 void RspeedDirectionCheck();
 void LspeedDirectionCheck();
 
-IPAddress laptop_ip(192, 168, 4, 51);
+IPAddress laptop_ip(192, 168, 4, 212);
 
 void setup() {
   // put your setup code here, to run once:
@@ -130,34 +134,44 @@ void loop() {
   v_left = linear - angular*(length/2);
   v_right = linear + angular*(length/2);
 
-  if(fabs(v_left) > fabs(max_speed)){
-    v_right = max_speed * (v_right/v_left);
+  if(fabs(v_left) > fabs(Lmax_speed)){
+    if(v_right > 0){
+      v_right = Rmax_speed * (v_right/v_left);
+    }
+    else{
+      v_right = -Rmax_speed * (v_right/v_left);
+    }
     if(v_left > 0){
-      v_left = max_speed;
+      v_left = Lmax_speed;
     }
     else{
-      v_left = -max_speed;
+      v_left = -Lmax_speed;
     }
   }
-  else if(fabs(v_right) > fabs(max_speed)){
-    v_left = max_speed * (v_left/v_right);
-    if(v_right> 0){
-      v_right = max_speed;
+  if(fabs(v_right) > fabs(Rmax_speed)){
+    if(v_left > 0){
+      v_left = Lmax_speed * (v_left/v_right);
     }
     else{
-      v_right = -max_speed;
+      v_left = -Lmax_speed * (v_left/v_right);
+    }
+    if(v_right< 0){
+      v_right = Rmax_speed;
+    }
+    else{
+      v_right = -Rmax_speed;
     }
   }
 
 
-  if(v_left > 0){
+  if(v_left < 0){
     d_reverse(AIN1, AIN2);
   }
   else{
     d_reverse(AIN2, AIN1);
   }
 
-  if(v_right > 0){
+  if(v_right < 0){
     d_reverse(BIN1, BIN2);
   }
   else{
@@ -166,17 +180,20 @@ void loop() {
 
   if(v_left == 0 && v_right == 0){
     digitalWrite(STBY, LOW);
+    STBY_val = "LOW";
   }
   else{
     digitalWrite(STBY, HIGH);
+    STBY_val = "HIGH";
   }
 
-  d_left = dutyConversion(v_left);
-  d_right = dutyConversion(v_right);
- 
+  d_left = dutyConversion(v_left, Lmax_speed);
+  d_right = dutyConversion(v_right, Rmax_speed);
+
 
   ledcWrite(PWMA_CHANNEL, d_left);
   ledcWrite(PWMB_CHANNEL, d_right);
+
 
   if(millis() - myTime > 50){
     true_speed_left = ((LG_Count - LG_Count_prev)/408.0)*(3.14159*0.065)/0.05;
@@ -202,7 +219,7 @@ void loop() {
     debugMonitor.print(d_left);
     debugMonitor.print("  d_right: ");
     debugMonitor.println(d_right);
-    debugMonitor.print("true_speed_left: ");
+    debugMonitor.println("true_speed_left: ");
     debugMonitor.print(true_speed_left);
     debugMonitor.print("  true_speed_right: "); 
     debugMonitor.println(true_speed_right);
@@ -226,7 +243,7 @@ void loop() {
 
 }
 
-int dutyConversion(float v_wheel) {
+int dutyConversion(float v_wheel, float max_speed){
   int duty = (int)((fabs(v_wheel)/max_speed)*255);
   if(duty > 255){
     return 255;
@@ -247,11 +264,11 @@ void d_reverse(int highPin, int lowPin){
 void RspeedDirectionCheck(){
   if(digitalRead(RIGHT_ENCODERY) == HIGH){
     RD = 1;
-    RG_Count--;
+    RG_Count++;
   }
   else{
     RD = 0;
-    RG_Count++;
+    RG_Count--;
   }
   
 }
