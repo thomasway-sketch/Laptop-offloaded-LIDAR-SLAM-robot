@@ -16,7 +16,8 @@
 #define LEFT_ENCODERY 35
 #define RIGHT_ENCODERG 36
 #define RIGHT_ENCODERY 39
-#define RX 27
+#define RX 33
+#define TX 27
 
 
 #define currentPort 8889
@@ -24,6 +25,7 @@
 WiFiUDP wifiUDP;
 WiFiUDP debugMonitor;
 WiFiUDP odomSend;
+WiFiUDP LIDARrelay;
 int character;
 String msg;
 
@@ -31,7 +33,7 @@ float linear;
 float angular;
 float length= 0.254;
 float Lmax_speed = 0.42; // m/s
-float Rmax_speed = 0.535; // m/s
+float Rmax_speed = 0.42; // m/s
 
 float v_left;
 float v_right;
@@ -63,12 +65,28 @@ void d_reverse(int highPin, int lowPin);
 void RspeedDirectionCheck();
 void LspeedDirectionCheck();
 
-IPAddress laptop_ip(192, 168, 4, 212);
+IPAddress laptop_ip(192, 168, 4, 237);
+
+long looprate = 0;
+
+long n;
+uint8_t bufferOut[256];
+uint8_t bufferIn[256];
+long LIDARrecv = 0;
+long LIDARsend = 0;
+long reportBytes = 0;
+unsigned long lastReport = 0;
+
 
 void setup() {
   // put your setup code here, to run once:
 
   Serial.begin(115200);
+  delay(1000);
+  Serial2.begin(115200, SERIAL_8N1, RX, TX);
+  Serial.println(ESP.getFreeHeap());
+  Serial.println("UART2 byte counter started");
+  lastReport = millis();
 
   pinMode(PWMA, OUTPUT);
   pinMode(PWMB, OUTPUT);
@@ -104,7 +122,7 @@ void setup() {
 
   debugMonitor.begin(8887);
   odomSend.begin(8886);
-
+  LIDARrelay.begin(8890);
   attachInterrupt(digitalPinToInterrupt(LEFT_ENCODERG), LspeedDirectionCheck, RISING);
   attachInterrupt(digitalPinToInterrupt(RIGHT_ENCODERG), RspeedDirectionCheck, RISING);
 
@@ -203,6 +221,25 @@ void loop() {
     myTime = millis();
   }
 
+  LIDARrecv = LIDARrelay.parsePacket();
+  if(LIDARrecv > 0){
+    n = LIDARrecv;
+    if (LIDARrecv > (int)sizeof(bufferIn)) n = sizeof(bufferIn);
+    n = LIDARrelay.read(bufferIn, n);
+    Serial2.write(bufferIn, n);
+  }
+
+  int avail = Serial2.available();
+  if (avail > 0) {
+    int k = avail;
+    if (k > (int)sizeof(bufferOut)) k = sizeof(bufferOut);
+    LIDARsend = Serial2.read(bufferOut, k);
+    LIDARrelay.beginPacket(laptop_ip, 8890);
+    LIDARrelay.write(bufferOut, LIDARsend);
+    LIDARrelay.endPacket();
+
+  }
+
   if(millis() - sendTimeMonitor > 1000){
     debugMonitor.beginPacket(laptop_ip, 8887);
     debugMonitor.print("msg: ");
@@ -284,4 +321,3 @@ void LspeedDirectionCheck(){
   }
   
 }
-

@@ -14,7 +14,7 @@ class OdomPub(Node):
     def __init__(self):
         super().__init__('odom_pub')
         self.publisher_ = self.create_publisher(Odometry, 'odom', 10)
-        self.UDP_IP = "192.168.4.212"
+        self.UDP_IP = "192.168.4.237"
         self.UDP_PORT = 8886
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((self.UDP_IP, self.UDP_PORT))

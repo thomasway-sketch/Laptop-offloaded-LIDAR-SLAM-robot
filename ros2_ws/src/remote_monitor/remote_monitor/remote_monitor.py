@@ -7,7 +7,7 @@ class RemoteMonitor(Node):
 
     def __init__(self):
         super().__init__('remote_monitor')
-        self.UDP_IP = "192.168.4.212"
+        self.UDP_IP = "192.168.4.237"
         self.UDP_PORT = 8887
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((self.UDP_IP, self.UDP_PORT))

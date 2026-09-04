@@ -463,3 +463,44 @@ Diagnosed due to the encoder LED flickered rapidly on battery power but was stea
 After fixing previous errors I tested the wheels movement using the teleop keyboard and found that sometimes the wheel functioned as intended and other times I only got silence. Using the remote monitor I found that all the commands were being sent through but not reaching the wheels sometimes.
 
 Diagnosed: When i pushed on the wires the wheels started to function again. I narrowed the problematic wire down the the STBY ESP to motor driver connection, most likely a break half way down the wire, and replaced it.
+
+1/09/2026 -
+**LiDAR core doesn't self-start**
+
+Spent a long time chasing zero bytes on UART2 before finding the actual cause via an observation: the red laser only turned on when I
+launched the ROS driver, never when the LiDAR was simply powered from my board.
+
+The motor runs whenever powered, which is misleading: the spinning LiDAR proves power to the motor, not the core. The core waits for a
+start command over serial, which means the ROS driver's startup handshake is needed for the core to turn on. 
+
+The datasheet says it starts scanning on power-up, which isn't what this unit does in practice.
+
+**Virtual serial port approach**
+
+Rather than implement Slamtec's binary protocol on the ESP32, kept the ESP32 protocol-ignorant and reused the proven ROS driver.
+
+Architecture: the ESP32 is a dumb bidirectional byte pipe, bytes from Serial2 go out over UDP, bytes from UDP get written to Serial2, with no understanding of what they mean. On the laptop, use socat to create a virtual serial device bridged to that UDP stream, and the standard rplidar_ros driver is pointed at it instead of /dev/ttyUSB0.
+
+2/09/2026 
+**TX/RX, and binary vs text**
+
+*TX/RX crossover.* I wired the LiDAR's RX to the pin my code declared as the ESP32's RX. I needed: LiDAR TX → ESP32 RX, LiDAR RX → ESP32 TX. 
+
+*Binary data needs an explicit length.* 
+Several attempts at the relay used print()/println() instead of write(). print formats as text and, with no length argument, treats the buffer as a null-terminated string — so it stops at the first zero byte. 
+
+Also wrote the LiDAR's own reply straight back to it and sent the byte *count* over UDP instead of the buffer contents. Both compiled
+fine.
+
+03/09/2026 
+**Relay working, single ESP32 sufficient**
+
+The full chain functions: driver → socat PTY → UDP → ESP32 → Serial2 → LiDAR, and back. Handshake completes, laser lights and scan data flows.
+
+Numbers: *10,600 bytes/sec* through the relay, and */scan publishing at 7.29 Hz*
+
+*Static transform published:* base_link → laser at x=0, y=0, z=0.10, with zero
+rotation - the LiDAR is centred over the axle, level, and its zero-reference points the same way the robot drives. base_link taken at the drive axle centre projected to ground, which is the convention Nav2 and the costmaps assume, and what the odometry implicitly computes anyway.
+
+tf tree now complete: odom → base_link → laser. All three SLAM ingredients are in
+place — odometry, transforms, and scan data.
