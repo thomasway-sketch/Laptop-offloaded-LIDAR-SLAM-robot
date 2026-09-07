@@ -502,5 +502,106 @@ Numbers: *10,600 bytes/sec* through the relay, and */scan publishing at 7.29 Hz*
 *Static transform published:* base_link → laser at x=0, y=0, z=0.10, with zero
 rotation - the LiDAR is centred over the axle, level, and its zero-reference points the same way the robot drives. base_link taken at the drive axle centre projected to ground, which is the convention Nav2 and the costmaps assume, and what the odometry implicitly computes anyway.
 
-tf tree now complete: odom → base_link → laser. All three SLAM ingredients are in
-place — odometry, transforms, and scan data.
+4/09/2026 
+**Bringup package and startup script**
+
+Everything was being started by hand across four terminals, so I packaged it up into 1.
+
+Created a `robot_bringup` package with `launch/`, `config/` and `maps/` directories. The launch file starts all the nodes and the LIDAR driver, also the static base_link→laser transform together.
+
+Ament_python doesn't install non-Python directories by default.
+So all launch files configs and maps need explicit `data_files` entries in setup.py. And every edit to a launch file or config
+needs a rebuild.
+
+*The static transform publisher takes named arguments* 
+On Jazzy (`--x`, `--frame-id`, `--child-frame-id`), not positional ones. Each flag and value must be its own element in the arguments list.
+
+*socat can't go in the launch file* 
+Becuase it isn't a ROS node it creates a device file and the driver needs that file to exist before it starts. So i made a shell script to wrap everything. socat backgrounded, brief sleep, then the launch in the foreground.
+
+*socat's two ports are different things*: 
+udp-datagram:IP:8890 sets where it sends data to, but bind=:8890 sets where it listens to. The ESP32 replies to 8890 so without the bind socat listens to a redundant port and every reply is lost.
+
+
+*slam_toolbox default config uses base_footprint*
+This robot doesn't have that and uses `base_link` instead.So SLAM was looking up odom to a frame that doesn't exist, and failing while the tf tree looked perfect.
+
+Fixed by copying slam toolbox's default params into robotbringup/config/, setting `base_frame: base_link`, and using it with command `slam_params_file:=`. Also set `max_laser_range: 6.0` - the A1's realistic indoor range.
+
+5/09/2026 
+**Step 6 complete: mapped a real room**
+
+The robot maps. Full stack running: teleop → bridge → WiFi → ESP32 → motors, encoders → odometry → tf, LiDAR → UDP relay → virtual serial port → driver →/scan, and slam_toolbox building an occupancy grid from all of it.
+
+Saved map with `nav2_map_server map_saver_cli` Both .pgm and .yaml installed via a maps/ data_files entry and committed.
+
+(slam_toolbox's own serialised save returned result=255, which probably was a path issue. Not pursued: the pgm+yaml pair is what Nav2 consumes)
+
+**Everything in this chain is custom except slam_toolbox and the rplidar driver: the firmware, transport, odometry, relay and the virtual serial bridge.**
+
+6/09/2026 
+**Nav2 paramarmeters for a real robot**
+
+I copied Nav2's default parameters into robot_bringup/config/ and worked through changing them to match my robot.
+
+*Frames.* 
+Amcl's base_frame_id and collision monitor's base_frame_id both
+defaulted to base_footprint. base_link is already at ground level. Fixed
+
+*Velocity limits.* 
+Defaults were 0.5 m/s linear and 2.0 rad/s, with 2.5 m/s²
+acceleration. Set vxmax to 0.35 (below the ~0.42 measured max), wz_max to 1.5, and accelerations to 1.5. Worth noting the angular limit is a deliberate choice rather than a physical one.
+
+*Footprint.* robot_radius was 0.22 - this robot is around 0.15. Had to change it in costmaps.
+
+*Inflation.* 0.70m default would mark most of my 11×9m room as too costly to enter so dropped to 0.3.
+
+*Laser range.* amcl's laser_max_range was 100.0 (way too high) set to 6.0 to match what slam_toolbox uses.
+
+enable_stamped_cmd_vel: true set across all five nodes that take it
+(controller_server, behavior_server, velocity_smoother, collision_monitor and docking_server).
+
+**Nav2 bringup: the activation cascade**
+
+Nav2 came up but rejected every goal with "Action server is inactive." 
+
+*Used lifecycle states to debug:*
+controller_server active
+global_costmap inactive
+planner_server inactive
+bt_navigator inactive
+velocity_smoother inactive
+collision_monitor inactive
+
+
+*Root cause: AMCL had no initial pose.*
+Without one it won't publish map→odom, so the `map` frame doesn't exist so the lifecycle manager's activation sequence stalls and everything ordered after it never activates.
+
+The goal rejections, the missing costmaps and the silent /cmd_vel are all consequences of one node failing to configure at the start.
+
+Unstuck it by setting the pose and then manually activating the stalled nodes in dependency order: costmap → planner → bt__navigator, then velocity_smoother and collision_monitor.
+
+**Proper fix (to do): set `set_initial_pose: true` and an `initial_pose` in the amcl params so it localises on startup and the activation sequence never stalls.**
+
+**RViz QoS traps**
+The map wouldn't display despite map_server being active and `/map` carrying a
+valid 217×191 grid. The Map display showed Resolution/Width/Height all zero.
+
+`/map` is published *transient-local*. RViz's display defaults to volatile durability, the
+QoS profiles don't match and there's no error. Fixed by
+setting the display's QoS to Transient Local.
+
+
+**Step 7 complete: autonomous navigation**
+
+The robot navigates to clicked goals on its own. Nav2 plans a path against thesaved map, AMCL localises by matching scans, and the controller drives the wheels all on hardware and firmware built from parts.
+
+The full stack at this point: teleop or Nav2 → /cmd_vel → bridge node → WiFi → ESP32 → kinematics → motors; encoders → UDP → odometry node → /odom + tf; LiDAR → UART → ESP32 → UDP → virtual serial port → driver → /scan; AMCL → map→odom; Nav2 planning and control on top.
+
+**Known issues to fix:**
+
+- *Velocity tracking runs ~15–20% low.* Commanded 0.22/0.21 m/s, measured 0.17/0.19 using remote monitor. Most likely optimistic MAX__SPEED - the 0.42 figure was measured unloaded, and the real maximum underthe robot's weight is probably lower, so every command comes out short. Fix is either recalibrating the MAX_SPEED under load, or closing the loop with per-wheel PID using the encoder feedback that already exists.
+
+- *Control loop misses its rate:* MPPI wants 20 Hz, achieving 8.5 Hz. The controller is heavy for this laptop at batch size 2000 / 56 time steps. I couldlower controller_frequency to something achievable or switch to the lighter DWB controller.
+
+- AMCL initial pose still set manually; should be in params.

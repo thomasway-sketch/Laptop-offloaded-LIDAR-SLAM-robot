@@ -173,7 +173,7 @@ void loop() {
     else{
       v_left = -Lmax_speed * (v_left/v_right);
     }
-    if(v_right< 0){
+    if(v_right >0){
       v_right = Rmax_speed;
     }
     else{
@@ -209,8 +209,8 @@ void loop() {
   d_right = dutyConversion(v_right, Rmax_speed);
 
 
-  ledcWrite(PWMA_CHANNEL, d_left);
-  ledcWrite(PWMB_CHANNEL, d_right);
+  ledcWrite(PWMA_CHANNEL, d_right);
+  ledcWrite(PWMB_CHANNEL, d_left);
 
 
   if(millis() - myTime > 50){
@@ -268,7 +268,7 @@ void loop() {
     sendTimeMonitor = millis();
   }
 
-  if(millis() - sendTimeOdom > 50){
+  if(millis() - sendTimeOdom > 20){
     odomSend.beginPacket(laptop_ip, 8886);
     odomSend.print(LG_Count);
     odomSend.print(",");
