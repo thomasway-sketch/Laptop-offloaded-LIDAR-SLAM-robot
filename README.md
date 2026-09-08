@@ -53,7 +53,7 @@ ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false \
 
 ## Build log
 
-The interesting part of this project was the debugging. [`docs/build-log.md`](docs/BuildLog.md)
+The interesting part of this project was the debugging. [`docs/BuildLog.md`](docs/BuildLog.md)
 is a date-stamped account of what broke and how it was diagnosed. From a Bytes being skipped over my UDP relay, to a ground wire soldered into a PWM input that made the robot work tethered and fail on battery, to a QoS mismatch which caused my completely working map to become invisible.
 
 ## Next
